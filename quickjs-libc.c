@@ -3344,6 +3344,7 @@ static void *worker_func(void *opaque)
     JSRuntime *rt;
     JSThreadState *ts;
     JSContext *ctx;
+    JSValue promise;
     
     rt = JS_NewRuntime();
     if (rt == NULL) {
@@ -3370,8 +3371,11 @@ static void *worker_func(void *opaque)
 
     js_std_add_helpers(ctx, -1, NULL);
 
-    if (!JS_RunModule(ctx, args->basename, args->filename))
+    promise = JS_LoadModule(ctx, args->basename, args->filename);
+    if (JS_IsException(promise))
         js_std_dump_error(ctx);
+    /* XXX: check */
+    JS_FreeValue(ctx, promise);
     free(args->filename);
     free(args->basename);
     free(args);
