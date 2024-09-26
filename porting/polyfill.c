@@ -152,9 +152,7 @@ int tagFile(const char *pathname, unsigned short ccsid){
 
   int res = __chattr((char*)pathname, &attr, sizeof(attr));
 #endif
-  if (res){
-    printf("chattr failed with errno=%d\n",errno);
-  }
+
   return res;
 }
 
