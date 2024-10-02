@@ -115,9 +115,6 @@ int convertOpenStream(int fd, unsigned short fileCCSID){
   conversionArg.pccsid = 0;
   conversionArg.fccsid = fileCCSID; /* 1047; */
   int res = fcntl(fd, F_CONTROL_CVT, &conversionArg);
-  if (res != 0){
-    printf("* internal error* convertOpenStream(), and ascii/ebcdic function, called fcntl failed errno=%d\n",errno);
-  }
   return res;
 }
 
