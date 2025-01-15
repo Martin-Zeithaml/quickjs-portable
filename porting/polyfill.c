@@ -115,9 +115,6 @@ int convertOpenStream(int fd, unsigned short fileCCSID){
   conversionArg.pccsid = 0;
   conversionArg.fccsid = fileCCSID; /* 1047; */
   int res = fcntl(fd, F_CONTROL_CVT, &conversionArg);
-  if (res != 0){
-    printf("* internal error* convertOpenStream(), and ascii/ebcdic function, called fcntl failed errno=%d\n",errno);
-  }
   return res;
 }
 
@@ -152,9 +149,7 @@ int tagFile(const char *pathname, unsigned short ccsid){
 
   int res = __chattr((char*)pathname, &attr, sizeof(attr));
 #endif
-  if (res){
-    printf("chattr failed with errno=%d\n",errno);
-  }
+
   return res;
 }
 
