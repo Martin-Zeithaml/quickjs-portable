@@ -44115,7 +44115,7 @@ static const JSCFunctionListEntry js_math_obj[] = {
    between UTC time and local time 'd' in minutes */
 static int getTimezoneOffset(int64_t time)
 {
-#elif defined(__MVS__) /* JOENemo */
+#if defined(__MVS__) /* JOENemo */
     return 0;
 #else
     time_t ti;
@@ -44164,6 +44164,7 @@ static int getTimezoneOffset(int64_t time)
     }
 #endif
     return res;
+#endif
 }
 
 #if 0
