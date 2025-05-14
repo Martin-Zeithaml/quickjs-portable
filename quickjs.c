@@ -543,8 +543,6 @@ static char *get_id_from_opcode(OPCodeEnum op)
         return "iterator_get_value_done";
     case OP_iterator_close:
         return "iterator_close";
-    case OP_iterator_close_return:
-        return "iterator_close_return";
     case OP_iterator_next:
         return "iterator_next";
     case OP_iterator_call:
@@ -1044,8 +1042,6 @@ static char *get_id_from_opcode(OPCodeEnum op)
         return "iterator_get_value_done";
     case OP_iterator_close:
         return "iterator_close";
-    case OP_iterator_close_return:
-        return "iterator_close_return";
     case OP_iterator_next:
         return "iterator_next";
     case OP_iterator_call:
