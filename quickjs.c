@@ -63,7 +63,7 @@
 
 #if defined(_LP64) && defined(__MVS__)
 typedef int64_t ssize_t; /* JOENemo - I don't know where this comes from, but it's necessary */
-#else
+#elif !defined(__APPLE__) && !defined(__linux__)
 typedef int ssize_t;
 #endif
 
