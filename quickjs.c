@@ -11213,7 +11213,13 @@ static JSValue js_atof(JSContext *ctx, const char *str, const char **pp,
             } else
 #endif
             {
+#ifdef _MSC_VER
+                /* MSVC rejects 1.0/0.0 as a constant expression (C2124).
+                   Use INFINITY from <math.h> (included above) instead. */
+                double d = INFINITY;
+#else
                 double d = 1.0 / 0.0;
+#endif
                 if (is_neg)
                     d = -d;
                 val = JS_NewFloat64(ctx, d);
