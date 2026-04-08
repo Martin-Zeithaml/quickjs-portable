@@ -63,7 +63,8 @@
 
 #if defined(_LP64) && defined(__MVS__)
 typedef int64_t ssize_t; /* JOENemo - I don't know where this comes from, but it's necessary */
-#elif !defined(__APPLE__) && !defined(__linux__)
+#elif !defined(__APPLE__) && !defined(__linux__) && !defined(_MSC_VER)
+/* _MSC_VER: ssize_t already provided by porting/winstdio.h (typedef int64_t) */
 typedef int ssize_t;
 #endif
 
