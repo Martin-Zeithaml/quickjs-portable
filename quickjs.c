@@ -76,7 +76,9 @@ typedef int ssize_t;
 
 #define OPTIMIZE         1
 #define SHORT_OPCODES    1
-#if defined(EMSCRIPTEN)
+#if defined(EMSCRIPTEN) || defined(_MSC_VER)
+/* EMSCRIPTEN has no computed-goto support.
+   MSVC does not support GCC's &&label extension. */
 #define DIRECT_DISPATCH  0
 #else
 #define DIRECT_DISPATCH  1
