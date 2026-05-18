@@ -63,8 +63,10 @@
 
 #if defined(_LP64) && defined(__MVS__)
 typedef int64_t ssize_t; /* JOENemo - I don't know where this comes from, but it's necessary */
+#elif defined(_WIN32)
+typedef int ssize_t;     /* MSVC stdlib doesn't declare ssize_t */
 #else
-typedef int ssize_t;
+#include <sys/types.h>   /* POSIX systems (Linux, macOS, *BSD, Solaris, etc.) declare ssize_t here */
 #endif
 
 #include "cutils.h"

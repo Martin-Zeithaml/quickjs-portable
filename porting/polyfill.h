@@ -221,7 +221,11 @@ int64_t atomicIncrementI64(int64_t *intPointer, int64_t increment);
 
 
 
+/* ibm-clang64 (Open XL) provides clockid_t via its LE <time.h>; xlclang's LE
+ * does not. Polyfill everywhere except ibm-clang64 on z/OS. */
+#if !(defined(__MVS__) && defined(__clang__) && !defined(__ibmxl__))
 typedef int clockid_t;
+#endif
 
 #define CLOCK_REALTIME  0
 #define CLOCK_MONOTONIC 1
