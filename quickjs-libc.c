@@ -2787,14 +2787,9 @@ static JSValue js_os_realpath(JSContext *ctx, JSValueConst this_val,
     char buf[PATH_MAX], *res;
     int err;
 
-    fprintf(stderr, "js_os_realpath: PATH_MAX = %i", PATH_MAX);
-
     path = JS_ToCString(ctx, argv[0]);
     if (!path)
         return JS_EXCEPTION;
-
-    fprintf(stderr, "js_os_realpath: path = %s", path);
-
     res = realpath(path, buf);
     JS_FreeCString(ctx, path);
     if (!res) {
