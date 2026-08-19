@@ -97,6 +97,31 @@ typedef sig_t sighandler_t;
 #define USE_WORKER
 #endif
 
+#if !defined(_WIN32)
+#ifndef USE_SETGROUPS
+#if defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) || \
+    defined(__OpenBSD__) || defined(__NetBSD__) || defined(__DragonFly__) || \
+    defined(__sun) || defined(_AIX) || defined(__CYGWIN__) || defined(__MVS__)
+#define USE_SETGROUPS 1
+#else
+#define USE_SETGROUPS 0
+#endif
+#endif
+#if USE_SETGROUPS
+#include <sys/types.h>
+#ifdef __MVS__ /* JOENemo */
+/* z/OS has setgroups() but only declares it in <grp.h> when _OPEN_SYS is
+   defined, and that feature test macro must be set before any system header is
+   included. Defining it for the whole file would change the layout of some
+   system structures shared with porting/polyfill.c, so the prototype is
+   declared here instead (see the z/OS C library reference for setgroups()). */
+int setgroups(const int size, const gid_t list[]);
+#else
+#include <grp.h>
+#endif
+#endif /* USE_SETGROUPS */
+#endif /* !_WIN32 */
+
 #ifdef USE_WORKER
 #ifdef __MVS__ /* JOENemo */
 #define __SUSV3_THR 1 /* this should go, I think */
@@ -2958,6 +2983,72 @@ static int my_execvpe(const char *filename, char **argv, char **envp)
     return -1;
 }
 
+static void child_error(const char *func) {
+    char buf[128];
+    int len;
+
+    len = snprintf(buf, sizeof(buf), "quickjs: exec: %s: errno=%d\n", func, errno);
+    if (len > 0) {
+        if (len > (int)sizeof(buf) - 1)
+            len = sizeof(buf) - 1;
+        if (write(2, buf, len) < 0) {
+            /* nothing can be done about it */
+        }
+    }
+}
+
+/* change the credentials of the forked child before exec(). uid and gid are
+   (uint32_t)-1 when not specified. Return 0 if OK, -1 if error. */
+static int child_set_ugid(uint32_t uid, uint32_t gid) {
+    if (uid == (uint32_t)-1 && gid == (uint32_t)-1)
+        return 0;
+
+    if (geteuid() == 0) {
+#if USE_SETGROUPS
+        gid_t groups[1];
+
+
+        groups[0] = (gid != (uint32_t)-1) ? (gid_t)gid : getegid();
+        if (setgroups(0, groups) < 0) {
+            if (errno != EINVAL || setgroups(1, groups) < 0) {
+                child_error("setgroups");
+                return -1;
+            }
+        }
+#else
+        child_error("setgroups() is not available: cannot reset the supplementary groups");
+        return -1;
+#endif
+    }
+
+    if (gid != (uint32_t)-1) {
+        if (setgid(gid) < 0) {
+            child_error("setgid");
+            return -1;
+        }
+    }
+
+    if (uid != (uint32_t)-1) {
+        if (setuid(uid) < 0) {
+            child_error("setuid");
+            return -1;
+        }
+    }
+
+    if (gid != (uint32_t)-1 && (getgid() != (gid_t)gid || getegid() != (gid_t)gid)) {
+        errno = EPERM;
+        child_error("setgid check");
+        return -1;
+    }
+
+    if (uid != (uint32_t)-1 && (getuid() != (uid_t)uid || geteuid() != (uid_t)uid)) {
+        errno = EPERM;
+        child_error("setuid check");
+        return -1;
+    }
+    return 0;
+}
+
 /* exec(args[, options]) -> exitcode */
 static JSValue js_os_exec(JSContext *ctx, JSValueConst this_val,
                           int argc, JSValueConst *argv)
@@ -3100,14 +3191,8 @@ static JSValue js_os_exec(JSContext *ctx, JSValueConst this_val,
             if (chdir(cwd) < 0)
                 _exit(127);
         }
-        if (uid != -1) {
-            if (setuid(uid) < 0)
-                _exit(127);
-        }
-        if (gid != -1) {
-            if (setgid(gid) < 0)
-                _exit(127);
-        }
+        if (child_set_ugid(uid, gid) < 0)
+            _exit(127);
 
         if (!file)
             file = exec_argv[0];

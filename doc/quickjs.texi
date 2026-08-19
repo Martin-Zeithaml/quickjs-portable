@@ -756,10 +756,24 @@ object containing optional parameters:
   @item uid
   Integer. If present, the process uid with @code{setuid}.
 
-  @item gid 
+  @item gid
   Integer. If present, the process gid with @code{setgid}.
 
   @end table
+
+  If @code{uid} or @code{gid} is present and the current process is
+  privileged (effective uid 0), the supplementary group list of the child
+  is emptied with @code{setgroups} before @code{setgid} and
+  @code{setuid} are called, so that the child does not keep the group
+  based access rights of the parent. @code{gid} should always be given
+  together with @code{uid}, otherwise the child keeps the gid of the
+  parent. The child exits with the code 127 and writes a message on
+  stderr if the credentials cannot be changed. @code{setgroups} is used
+  on Linux, macOS, the BSDs, Solaris, AIX, Cygwin and z/OS; on the other
+  platforms (@code{USE_SETGROUPS} is 0) changing the uid or the gid of
+  the child of a privileged process is refused. Compile with
+  @code{-DUSE_SETGROUPS=1} or @code{-DUSE_SETGROUPS=0} to override this
+  choice.
 
 @item getpid()
 Return the current process ID.
