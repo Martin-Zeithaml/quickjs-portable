@@ -26,6 +26,25 @@ size_t malloc_usable_size (const void *ptr){
   }
 }
 
+#ifdef __MVS__
+void execChildError(const char *what){
+  int savedErrno = errno;
+  unsigned int reason = (unsigned int)__errno2();
+  char buf[160];
+  int len = snprintf(buf, sizeof(buf), "quickjs: exec: %s: errno=%d errno2=%08X\n",
+                     what, savedErrno, reason);
+  if (len > 0) {
+    if (len > (int)sizeof(buf) - 1) {
+      len = (int)sizeof(buf) - 1;
+    }
+    if (write(2, buf, len) < 0) {
+      /* nothing more can be done from the child */
+    }
+  }
+  errno = savedErrno;
+}
+#endif
+
 #if defined(__XPLINK__)
 int32_t atomicIncrementI32(int32_t *place, int32_t increment){
   int32_t oldValue = 0;
@@ -115,13 +134,11 @@ int convertOpenStream(int fd, unsigned short fileCCSID){
   conversionArg.pccsid = 0;
   conversionArg.fccsid = fileCCSID; /* 1047; */
   int res = fcntl(fd, F_CONTROL_CVT, &conversionArg);
-  if (res != 0){
-    printf("* internal error* convertOpenStream(), and ascii/ebcdic function, called fcntl failed errno=%d\n",errno);
-  }
   return res;
 }
 
 #define CCSID_BINARY 65535
+#define CCSID_NONE 0
 
 int tagFile(const char *pathname, unsigned short ccsid){
 #if defined(_LP64) && defined(ZCOMPILE_CLANG)
@@ -130,7 +147,11 @@ int tagFile(const char *pathname, unsigned short ccsid){
 
   attr.att_filetagchg = 1;
   attr.att_filetag.ft_ccsid = ccsid;
-  attr.att_filetag.ft_txtflag = (ccsid == CCSID_BINARY ? 0 : 1);
+  if (ccsid == CCSID_NONE || ccsid == CCSID_BINARY ) {
+    attr.att_filetag.ft_txtflag = 0;
+  } else {
+    attr.att_filetag.ft_txtflag = 1;
+  }
 
   int res = __chattr64((char*)pathname, &attr, sizeof(attr));
 #else
@@ -139,13 +160,15 @@ int tagFile(const char *pathname, unsigned short ccsid){
 
   attr.att_filetagchg = 1;
   attr.att_filetag.ft_ccsid = ccsid;
-  attr.att_filetag.ft_txtflag = (ccsid == CCSID_BINARY ? 0 : 1);
+  if (ccsid == CCSID_NONE || ccsid == CCSID_BINARY ) {
+    attr.att_filetag.ft_txtflag = 0;
+  } else {
+    attr.att_filetag.ft_txtflag = 1;
+  }
 
   int res = __chattr((char*)pathname, &attr, sizeof(attr));
 #endif
-  if (res){
-    printf("chattr failed with errno=%d\n",errno);
-  }
+
   return res;
 }
 
