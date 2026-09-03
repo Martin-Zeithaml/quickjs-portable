@@ -77,7 +77,10 @@
 #ifdef __MVS__ /* JOENemo */
 #include "porting/polyfill.h"
 #ifndef PATH_MAX
-#define PATH_MAX _POSIX_PATH_MAX
+#define PATH_MAX 1023
+#endif
+#ifndef NAME_MAX
+#define NAME_MAX 255
 #endif
 extern char **environ;
 #endif
