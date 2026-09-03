@@ -1408,16 +1408,17 @@ static JSValue js_std_urlGet(JSContext *ctx, JSValueConst this_val,
     }
     
     js_std_dbuf_init(ctx, &cmd_buf);
-    dbuf_printf(&cmd_buf, "%s ''", URL_GET_PROGRAM);
+    dbuf_printf(&cmd_buf, "%s '", URL_GET_PROGRAM);
     len = strlen(url);
     for(i = 0; i < len; i++) {
         c = url[i];
-        if (c == '\'' || c == '\\')
-            dbuf_putc(&cmd_buf, '\\');
-        dbuf_putc(&cmd_buf, c);
+        if (c == '\'')
+            dbuf_putstr(&cmd_buf, "'\\''");
+        else
+            dbuf_putc(&cmd_buf, c);
     }
     JS_FreeCString(ctx, url);
-    dbuf_putstr(&cmd_buf, "''");
+    dbuf_putc(&cmd_buf, '\'');
     dbuf_putc(&cmd_buf, '\0');
     if (dbuf_error(&cmd_buf)) {
         dbuf_free(&cmd_buf);
