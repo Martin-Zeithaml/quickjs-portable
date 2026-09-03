@@ -73,6 +73,7 @@
 #include <termios.h>
 #include <sys/ioctl.h>
 #include <sys/wait.h>
+#include <grp.h>     /* setgroups(); z/OS declares it in porting/polyfill.h */
 
 #ifdef __MVS__ /* JOENemo */
 #include "porting/polyfill.h"
@@ -83,6 +84,11 @@
 #define NAME_MAX 255
 #endif
 extern char **environ;
+/* A credential failure in the exec() child is worth a line on stderr on z/OS:
+   errno alone (often EMVSERR) says nothing, the reason code names the cause. */
+#define exec_child_fail(what) do { execChildError(what); _exit(127); } while (0)
+#else
+#define exec_child_fail(what) _exit(127)
 #endif
 
 #if defined(__APPLE__)
@@ -3103,13 +3109,22 @@ static JSValue js_os_exec(JSContext *ctx, JSValueConst this_val,
             if (chdir(cwd) < 0)
                 _exit(127);
         }
-        if (uid != -1) {
-            if (setuid(uid) < 0)
-                _exit(127);
+        if (uid != -1 || gid != -1) {
+            /* setuid() and setgid() leave the supplementary group list alone
+               and exec() inherits it, so a privileged parent must clear it
+               first or the child keeps the parent's group access. Only a
+               privileged parent can clear it, and only one has anything to
+               drop. gid before uid: setuid() gives up the right to setgid(). */
+            if (geteuid() == 0 && setgroups(0, NULL) < 0)
+                exec_child_fail("setgroups");
         }
         if (gid != -1) {
             if (setgid(gid) < 0)
-                _exit(127);
+                exec_child_fail("setgid");
+        }
+        if (uid != -1) {
+            if (setuid(uid) < 0)
+                exec_child_fail("setuid");
         }
 
         if (!file)
