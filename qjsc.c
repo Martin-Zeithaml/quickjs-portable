@@ -620,17 +620,37 @@ int main(int argc, char **argv)
     }
 
     if (output_type == OUTPUT_EXECUTABLE) {
-#if defined(_WIN32) || defined(__ANDROID__)
+#if defined(_WIN32)
         /* XXX: find a /tmp directory ? */
         snprintf(cfilename, sizeof(cfilename), "out%d.c", getpid());
+        fo = fopen(cfilename, "w");
 #else
-        snprintf(cfilename, sizeof(cfilename), "/tmp/out%d.c", getpid());
+        char tmpl[1024];
+        int fd;
+#ifdef __ANDROID__
+        pstrcpy(tmpl, sizeof(tmpl), "qjscXXXXXX");
+#else
+        pstrcpy(tmpl, sizeof(tmpl), "/tmp/qjscXXXXXX");
+#endif
+        fd = mkstemp(tmpl);
+        if (fd < 0) {
+            perror(tmpl);
+            exit(1);
+        }
+        snprintf(cfilename, sizeof(cfilename), "%s.c", tmpl);
+        if (rename(tmpl, cfilename) < 0) {
+            perror(cfilename);
+            close(fd);
+            unlink(tmpl);
+            exit(1);
+        }
+        fo = fdopen(fd, "w");
 #endif
     } else {
         pstrcpy(cfilename, sizeof(cfilename), out_filename);
+        fo = fopen(cfilename, "w");
     }
-    
-    fo = fopen(cfilename, "w");
+
 #ifdef QASCII /* JOENemo */
     tagFile(cfilename, CHARSET_ISO8859);
 #endif
