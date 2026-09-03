@@ -26,6 +26,25 @@ size_t malloc_usable_size (const void *ptr){
   }
 }
 
+#ifdef __MVS__
+void execChildError(const char *what){
+  int savedErrno = errno;
+  unsigned int reason = (unsigned int)__errno2();
+  char buf[160];
+  int len = snprintf(buf, sizeof(buf), "quickjs: exec: %s: errno=%d errno2=%08X\n",
+                     what, savedErrno, reason);
+  if (len > 0) {
+    if (len > (int)sizeof(buf) - 1) {
+      len = (int)sizeof(buf) - 1;
+    }
+    if (write(2, buf, len) < 0) {
+      /* nothing more can be done from the child */
+    }
+  }
+  errno = savedErrno;
+}
+#endif
+
 // zosCas32/64 = z/OS Compare And Swap
 static _Bool zosCas32(uint32_t *place, uint32_t *expected, uint32_t desired){
   uint32_t oldValue = *expected;

@@ -73,13 +73,22 @@
 #include <termios.h>
 #include <sys/ioctl.h>
 #include <sys/wait.h>
+#include <grp.h>     /* setgroups(); z/OS declares it in porting/polyfill.h */
 
 #ifdef __MVS__ /* JOENemo */
 #include "porting/polyfill.h"
 #ifndef PATH_MAX
-#define PATH_MAX _POSIX_PATH_MAX
+#define PATH_MAX 1023
+#endif
+#ifndef NAME_MAX
+#define NAME_MAX 255
 #endif
 extern char **environ;
+/* A credential failure in the exec() child is worth a line on stderr on z/OS:
+   errno alone (often EMVSERR) says nothing, the reason code names the cause. */
+#define exec_child_fail(what) do { execChildError(what); _exit(127); } while (0)
+#else
+#define exec_child_fail(what) _exit(127)
 #endif
 
 #if defined(__APPLE__)
@@ -1399,16 +1408,17 @@ static JSValue js_std_urlGet(JSContext *ctx, JSValueConst this_val,
     }
     
     js_std_dbuf_init(ctx, &cmd_buf);
-    dbuf_printf(&cmd_buf, "%s ''", URL_GET_PROGRAM);
+    dbuf_printf(&cmd_buf, "%s '", URL_GET_PROGRAM);
     len = strlen(url);
     for(i = 0; i < len; i++) {
         c = url[i];
-        if (c == '\'' || c == '\\')
-            dbuf_putc(&cmd_buf, '\\');
-        dbuf_putc(&cmd_buf, c);
+        if (c == '\'')
+            dbuf_putstr(&cmd_buf, "'\\''");
+        else
+            dbuf_putc(&cmd_buf, c);
     }
     JS_FreeCString(ctx, url);
-    dbuf_putstr(&cmd_buf, "''");
+    dbuf_putc(&cmd_buf, '\'');
     dbuf_putc(&cmd_buf, '\0');
     if (dbuf_error(&cmd_buf)) {
         dbuf_free(&cmd_buf);
@@ -3100,13 +3110,22 @@ static JSValue js_os_exec(JSContext *ctx, JSValueConst this_val,
             if (chdir(cwd) < 0)
                 _exit(127);
         }
-        if (uid != -1) {
-            if (setuid(uid) < 0)
-                _exit(127);
+        if (uid != -1 || gid != -1) {
+            /* setuid() and setgid() leave the supplementary group list alone
+               and exec() inherits it, so a privileged parent must clear it
+               first or the child keeps the parent's group access. Only a
+               privileged parent can clear it, and only one has anything to
+               drop. gid before uid: setuid() gives up the right to setgid(). */
+            if (geteuid() == 0 && setgroups(0, NULL) < 0)
+                exec_child_fail("setgroups");
         }
         if (gid != -1) {
             if (setgid(gid) < 0)
-                _exit(127);
+                exec_child_fail("setgid");
+        }
+        if (uid != -1) {
+            if (setuid(uid) < 0)
+                exec_child_fail("setuid");
         }
 
         if (!file)

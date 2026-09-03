@@ -756,10 +756,16 @@ object containing optional parameters:
   @item uid
   Integer. If present, the process uid with @code{setuid}.
 
-  @item gid 
+  @item gid
   Integer. If present, the process gid with @code{setgid}.
 
   @end table
+
+  When @code{uid} or @code{gid} is present and the calling process is
+  privileged, the supplementary group list of the child is cleared with
+  @code{setgroups} before @code{setgid} and @code{setuid}, so the child
+  does not keep the group access of the parent. The child exits with
+  code 127 if the credentials cannot be changed.
 
 @item getpid()
 Return the current process ID.
